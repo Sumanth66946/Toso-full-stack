@@ -1,0 +1,117 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
+
+body {
+  margin: 0;
+  font-family: "Roboto", sans-serif;
+  background-color: #f9fbfe;
+}
+
+.todos-bg-container {
+  min-height: 100vh;
+  padding: 30px 0;
+}
+
+.todos-heading {
+  text-align: center;
+  font-size: 36px;
+  font-weight: 600;
+  margin-bottom: 30px;
+}
+
+.create-task-heading,
+.todo-items-heading {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.create-task-heading-subpart,
+.todo-items-heading-subpart {
+  font-weight: 500;
+}
+
+.todo-user-input {
+  width: 100%;
+  padding: 12px 15px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+
+.button {
+  background-color: #4c63b6;
+  color: white;
+  padding: 10px 25px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.todo-items-container {
+  list-style: none;
+  padding: 0;
+}
+
+.todo-item-container {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 15px;
+}
+
+/* Task structure: checkbox + flex row for content */
+.checkbox-input {
+  width: 20px;
+  height: 20px;
+  margin-right: 12px;
+  margin-top: 12px;
+}
+
+.label-container {
+  background-color:#b6d2e3;;
+  border-left: 5px solid #096f92;
+  border-radius: 6px;
+  padding: 12px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-grow: 1;
+}
+
+/* Wrapper to hold label + time */
+.label-text-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  word-break: break-word;
+  flex-grow: 1;
+}
+
+.checkbox-label {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.task-time {
+  margin-left: 10px;
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.checked {
+  text-decoration: line-through;
+  color: #999;
+}
+
+/* ✅ Delete icon */
+.delete-icon {
+  color: #dc3545;
+  font-size: 20px;
+  margin-left: 15px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.delete-icon:hover {
+  color: #a80f2c;
+}

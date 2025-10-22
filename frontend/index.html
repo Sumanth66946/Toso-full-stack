@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Todo App with Auth</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+  <style>
+    body { padding: 32px; font-family: Arial, sans-serif; }
+    .hidden { display: none; }
+    .todos-heading{ font-size: 2rem; }
+    .todo-user-input{ padding: .5rem; width: 100%; }
+    .todo-item-container { list-style: none; gap: .5rem; padding: .5rem 0; border-bottom: 1px solid #eee; display:flex; align-items:center; }
+    .checkbox-label.checked { text-decoration: line-through; opacity: .6; }
+    .delete-icon { cursor: pointer; margin-left: 12px; }
+    .task-time { color: #555; font-size: .9rem; margin-left: .5rem; }
+    .auth-container { max-width: 400px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+    .auth-container input { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <!-- Authentication -->
+  <div class="auth-container" id="authContainer">
+    <h2>Login / Signup</h2>
+    <input type="text" id="nameInput" placeholder="Name (for signup)" class="form-control" />
+    <input type="email" id="emailInput" placeholder="Email" class="form-control" />
+    <input type="password" id="passwordInput" placeholder="Password" class="form-control" />
+    <button class="btn btn-primary" id="loginButton">Login</button>
+    <button class="btn btn-success" id="signupButton">Signup</button>
+    <p id="authMessage" style="color:red;"></p>
+  </div>
+
+  <!-- Todo Container -->
+  <div class="todos-bg-container hidden" id="todoContainer">
+    <div class="container">
+      <div class="row">
+        <div class="col-12">
+          <button class="btn btn-warning float-right mb-3" id="logoutButton">Logout</button>
+          <h1 class="todos-heading">Todos</h1>
+
+          <div class="d-flex flex-column flex-md-row">
+            <input type="text" id="todoUserInput" class="todo-user-input mr-md-2 mb-2 mb-md-0" placeholder="What needs to be done?" />
+            <input type="time" id="todoTimeInput" class="todo-user-input" />
+          </div>
+          <button class="button mt-3" id="addTodoButton">Add</button>
+
+          <h1 class="todo-items-heading mt-4">Upcoming Tasks</h1>
+          <ul class="todo-items-container" id="upcomingTasksContainer"></ul>
+
+          <h1 class="todo-items-heading mt-4">Completed Tasks</h1>
+          <ul class="todo-items-container" id="completedTasksContainer"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const BASE = "http://localhost:3000";
+
+const authContainer = document.getElementById("authContainer");
+const todoContainer = document.getElementById("todoContainer");
+const authMessage = document.getElementById("authMessage");
+const loginButton = document.getElementById("loginButton");
+const signupButton = document.getElementById("signupButton");
+const logoutButton = document.getElementById("logoutButton");
+
+const upcomingTasksContainer = document.getElementById("upcomingTasksContainer");
+const completedTasksContainer = document.getElementById("completedTasksContainer");
+const addTodoButton = document.getElementById("addTodoButton");
+
+let token = localStorage.getItem("token");
+
+// ---------- Auth ----------
+function showTodos() {
+  authContainer.classList.add("hidden");
+  todoContainer.classList.remove("hidden");
+  renderTodosFromLocalStorage();
+  getTodos(); // Sync with backend
+}
+
+function showAuth() {
+  authContainer.classList.remove("hidden");
+  todoContainer.classList.add("hidden");
+}
+
+async function login() {
+  const email = document.getElementById("emailInput").value.trim();
+  const password = document.getElementById("passwordInput").value.trim();
+  if(!email || !password) { authMessage.textContent = "Please fill all fields"; return; }
+
+  try {
+    const res = await fetch(`${BASE}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if(res.ok) {
+      token = data.token;
+      localStorage.setItem("token", token);
+      showTodos();
+    } else authMessage.textContent = data.error || "Login failed";
+  } catch(err) { console.error(err); authMessage.textContent = "Login failed"; }
+}
+
+async function signup() {
+  const name = document.getElementById("nameInput").value.trim();
+  const email = document.getElementById("emailInput").value.trim();
+  const password = document.getElementById("passwordInput").value.trim();
+  if(!name || !email || !password) { authMessage.textContent = "Please fill all fields"; return; }
+
+  try {
+    const res = await fetch(`${BASE}/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password })
+    });
+    const data = await res.json();
+    if(res.ok) { authMessage.style.color = "green"; authMessage.textContent = "Signup successful! You can login now."; }
+    else { authMessage.style.color = "red"; authMessage.textContent = data.error || "Signup failed"; }
+  } catch(err) { console.error(err); authMessage.textContent = "Signup failed"; }
+}
+
+function logout() {
+  localStorage.removeItem("token");
+  token = null;
+  showAuth();
+}
+
+// ---------- Todos ----------
+function saveTodosToLocalStorage(todos) {
+  localStorage.setItem("todos", JSON.stringify(todos));
+}
+
+function renderTodosFromLocalStorage() {
+  const todos = JSON.parse(localStorage.getItem("todos") || "[]");
+  upcomingTasksContainer.innerHTML = "";
+  completedTasksContainer.innerHTML = "";
+  todos.forEach(todo => createAndAppendTodo(todo));
+}
+
+async function getTodos() {
+  if(!token) return;
+  try {
+    const res = await fetch(`${BASE}/todos/`, { headers: { "Authorization": `Bearer ${token}` } });
+    const data = await res.json();
+    // Save fetched todos to localStorage
+    saveTodosToLocalStorage(data.map(t => ({ ...t, isChecked: Boolean(t.isChecked) })));
+    renderTodosFromLocalStorage();
+  } catch (err) { console.error("Failed to fetch todos", err); }
+}
+
+function createAndAppendTodo(todo) {
+  const todoId = "todo" + todo.id;
+  const checkboxId = "checkbox" + todo.id;
+
+  const container = todo.isChecked ? completedTasksContainer : upcomingTasksContainer;
+
+  const todoElement = document.createElement("li");
+  todoElement.className = "todo-item-container d-flex align-items-center";
+  todoElement.id = todoId;
+  container.appendChild(todoElement);
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.id = checkboxId;
+  checkbox.checked = !!todo.isChecked;
+  checkbox.className = "checkbox-input mr-2";
+  checkbox.onclick = async () => {
+    await toggleTodoStatus(todo.id, checkbox.checked);
+  };
+  todoElement.appendChild(checkbox);
+
+  const label = document.createElement("label");
+  label.setAttribute("for", checkboxId);
+  label.className = "checkbox-label flex-grow-1";
+  label.textContent = todo.text || "";
+
+  if (todo.time) {
+    const timeSpan = document.createElement("span");
+    timeSpan.className = "task-time";
+    timeSpan.textContent = ` @ ${todo.time}`;
+    label.appendChild(timeSpan);
+  }
+
+  if (todo.isChecked) label.classList.add("checked");
+
+  todoElement.appendChild(label);
+
+  const deleteIcon = document.createElement("i");
+  deleteIcon.className = "fas fa-trash-alt delete-icon ml-2";
+  deleteIcon.title = "Delete Task";
+  deleteIcon.onclick = async () => { await deleteTodo(todo.id); };
+  todoElement.appendChild(deleteIcon);
+}
+
+// Add Todo
+addTodoButton.onclick = async () => {
+  const textInput = document.getElementById("todoUserInput").value.trim();
+  const timeInput = document.getElementById("todoTimeInput").value;
+  if (textInput === "") { alert("Please enter a task"); return; }
+
+  try {
+    const res = await fetch(`${BASE}/todos/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({ text: textInput, time: timeInput, isChecked: false })
+    });
+    const data = await res.json();
+
+    // Optimistic update & save to localStorage
+    const todos = JSON.parse(localStorage.getItem("todos") || "[]");
+    todos.unshift({ id: data.id, text: textInput, time: timeInput, isChecked: false });
+    saveTodosToLocalStorage(todos);
+    renderTodosFromLocalStorage();
+
+    document.getElementById("todoUserInput").value = "";
+    document.getElementById("todoTimeInput").value = "";
+  } catch(err) { console.error("Failed to add todo", err); }
+};
+
+async function toggleTodoStatus(id, isChecked) {
+  try {
+    await fetch(`${BASE}/todos/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({ isChecked })
+    });
+    const todos = JSON.parse(localStorage.getItem("todos") || "[]");
+    const index = todos.findIndex(t => t.id === id);
+    if(index !== -1) { todos[index].isChecked = isChecked; saveTodosToLocalStorage(todos); }
+    renderTodosFromLocalStorage();
+  } catch(err) { console.error("Failed to update todo", err); }
+}
+
+async function deleteTodo(id) {
+  try {
+    await fetch(`${BASE}/todos/${id}`, {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    let todos = JSON.parse(localStorage.getItem("todos") || "[]");
+    todos = todos.filter(t => t.id !== id);
+    saveTodosToLocalStorage(todos);
+    renderTodosFromLocalStorage();
+  } catch(err) { console.error("Failed to delete todo", err); }
+}
+
+// ---------- Init ----------
+if(token) { showTodos(); } else { showAuth(); }
+
+loginButton.onclick = login;
+signupButton.onclick = signup;
+logoutButton.onclick = logout;
+</script>
+</body>
+</html>
